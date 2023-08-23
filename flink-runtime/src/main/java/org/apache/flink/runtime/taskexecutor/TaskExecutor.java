@@ -417,6 +417,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             // 多易教育： leaderRetriever启动过程中会执行获取 leader的逻辑，以及调用 listener的回调逻辑
             //  listener的回调逻辑，
             //  则主要是 向ResourceManagerLeader注册, report资源信息,见<this::connectToResourceManager>
+            // TODO taskManager向ResourceManager发起连接
             resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
 
             // tell the task slot table who's responsible for the task slot actions
@@ -427,8 +428,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
             // start the job leader service
             // 多易教育： 仅仅是构造一个 DefaultJobLeaderService 对象，把传入的参数赋给成员罢了
-            jobLeaderService.start(
-                    getAddress(), getRpcService(), haServices, new JobLeaderListenerImpl());
+            jobLeaderService.start(getAddress(), getRpcService(), haServices, new JobLeaderListenerImpl());
 
             // 多易教育:创建 FileCache对象，用于存储 Task在执行过程中从
             //  PermanentBlobService拉取的文件，并将文件展开在 /tmp_/ 路径中，如果
@@ -437,6 +437,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                     new FileCache(
                             taskManagerConfiguration.getTmpDirectories(),
                             blobCacheService.getPermanentBlobService());
+            jobLeaderService.start(getAddress(), getRpcService(), haServices, new JobLeaderListenerImpl());
+
+            fileCache = new FileCache(taskManagerConfiguration.getTmpDirectories(), blobCacheService.getPermanentBlobService());
         } catch (Exception e) {
             handleStartTaskExecutorServicesException(e);
         }
@@ -576,9 +579,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     // ----------------------------------------------------------------------
     // Task lifecycle RPCs
     // ----------------------------------------------------------------------
-    // 多易教育:   提交 task的rpc接口方法
-    //  JobMaster端的 SchedulerNG 负责生成调度计划，为每一个任务实例生成 Execution对象,
-    //   然后通过 Execution.deploy()方法，方法中会通过 TaskExecutor 网关，来向 TaskExecutor提交 task
+    //TODO 多易教育:提交task的rpc接口方法
+    //JobMaster端的SchedulerNG负责生成调度计划，为每一个任务实例生成Execution对象
+    //然后通过Execution.deploy()方法，方法中会通过TaskExecutor网关，来向TaskExecutor提交task
     @Override
     public CompletableFuture<Acknowledge> submitTask(
             TaskDeploymentDescriptor tdd, JobMasterId jobMasterId, Time timeout) {
@@ -592,16 +595,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                     jobTable.getConnection(jobId)
                             .orElseThrow(
                                     () -> {
-                                        final String message =
-                                                "Could not submit task because there is no JobManager "
-                                                        + "associated for the job "
-                                                        + jobId
-                                                        + '.';
-
+                                        final String message = "Could not submit task because there is no JobManager " + "associated for the job " + jobId + '.';
                                         log.debug(message);
                                         return new TaskSubmissionException(message);
                                     });
-            //多易教育: 对比本地根据jobId查询到的JobMasterId和提交task所带过来的JobMasterId是否一致
+            //TODO 多易教育: 对比本地根据jobId查询到的JobMasterId和提交task所带过来的JobMasterId是否一致
             if (!Objects.equals(jobManagerConnection.getJobMasterId(), jobMasterId)) {
                 final String message =
                         "Rejecting the task submission because the job manager leader id "
@@ -613,7 +611,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 log.debug(message);
                 throw new TaskSubmissionException(message);
             }
-            //多易教育: 在taskSlotTable中标记slot为活跃状态  //allocationId对应着一个taskSlot
+
+            //TODO 多易教育: 在taskSlotTable中标记slot为活跃状态
+            // 多易教育: 在taskSlotTable中标记slot为活跃状态  //allocationId对应着一个taskSlot
             if (!taskSlotTable.tryMarkSlotActive(jobId, tdd.getAllocationId())) {
                 final String message =
                         "No task slot allocated for job ID "
@@ -1084,7 +1084,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     // ----------------------------------------------------------------------
     // Slot allocation RPCs
     // ----------------------------------------------------------------------
-    // 多易教育:  对外暴露的rpc方法： Resource Manager通过该方法来请求slot，
+    // TODO 多易教育:  对外暴露的rpc方法： Resource Manager通过该方法来请求slot，
     //  由于 Resource Manager 知道所有 slot 的当前状况，因此分配请求会精确到具体的 SlotID,
     //  这里让人意外的是，一次调用居然只请求一个slot
     @Override
@@ -1099,22 +1099,17 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         // TODO: Filter invalid requests from the resource manager by using the
         // instance/registration Id
 
-        log.info(
-                "Receive slot request {} for job {} from resource manager with leader id {}.",
-                allocationId,
-                jobId,
-                resourceManagerId);
+        log.info("Receive slot request {} for job {} from resource manager with leader id {}.", allocationId, jobId, resourceManagerId);
 
         if (!isConnectedToResourceManager(resourceManagerId)) {
-            final String message =
-                    String.format(
-                            "TaskManager is not connected to the resource manager %s.",
-                            resourceManagerId);
+            final String message = String.format("TaskManager is not connected to the resource manager %s.", resourceManagerId);
             log.debug(message);
             return FutureUtils.completedExceptionally(new TaskManagerException(message));
         }
 
-        try {  // 多易教育:  分配slot资源
+        try {
+            // TODO 多易教育:  分配slot资源
+            // TODO 根据RM分配成功后的指令，分配自己的slot
             allocateSlot(slotId, jobId, allocationId, resourceProfile);
         } catch (SlotAllocationException sae) {
             return FutureUtils.completedExceptionally(sae);
@@ -1123,10 +1118,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         final JobTable.Job job;
 
         try {
-            job =
-                    jobTable.getOrCreateJob(
-                            //多易教育: 注册新的job，创建相关服务（jobLeader的连接服务）
-                            jobId, () -> registerNewJobAndCreateServices(jobId, targetAddress));
+            //TODO 多易教育: 注册新的job，创建相关服务（jobLeader的连接服务）
+            job = jobTable.getOrCreateJob(jobId, () -> registerNewJobAndCreateServices(jobId, targetAddress));
         } catch (Exception e) {
             // free the allocated slot
             try {
@@ -1145,10 +1138,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 onFatalError(new Exception("Could not free slot " + slotId));
             }
 
-            return FutureUtils.completedExceptionally(
-                    new SlotAllocationException("Could not create new job.", e));
+            return FutureUtils.completedExceptionally(new SlotAllocationException("Could not create new job.", e));
         }
-        // 多易教育:  如果job已连接，则将分配好的 slot 资源提供给 JobManager
+        // TODO 多易教育:  如果job已连接，则将分配好的 slot 资源提供给 JobManager
         if (job.isConnected()) {
             offerSlotsToJobManager(jobId);
         }
@@ -1160,7 +1152,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     //  上面的RPC方法 requestSlot 所用
     private TaskExecutorJobServices registerNewJobAndCreateServices(
             JobID jobId, String targetAddress) throws Exception {
-        //多易教育: DefaultJobLeaderService中持有一个jobLeaderService(Map结构)：
+        //TODO 多易教育:
+        // DefaultJobLeaderService中持有一个jobLeaderService(Map结构)：
         //  注册job对应的LeaderRetrievalService和JobManagerLeaderListener，
         //  addJob就是得到该job对应的retrievalService和leaderListener放入该Map中;
         //  同时，还会为此job创建leader连接服务及leader监听器
@@ -1351,13 +1344,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     private void notifyOfNewResourceManagerLeader(
             String newLeaderAddress, ResourceManagerId newResourceManagerId) {
-        resourceManagerAddress =
-                createResourceManagerAddress(newLeaderAddress, newResourceManagerId);
-        reconnectToResourceManager(
-                new FlinkException(
-                        String.format(
-                                "ResourceManager leader changed to new address %s",
-                                resourceManagerAddress)));
+        resourceManagerAddress = createResourceManagerAddress(newLeaderAddress, newResourceManagerId);
+        // TODO 连接RM
+        reconnectToResourceManager(new FlinkException(String.format("ResourceManager leader changed to new address %s", resourceManagerAddress)));
     }
 
     @Nullable
@@ -1379,6 +1368,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     private void tryConnectToResourceManager() {
         if (resourceManagerAddress != null) {
+            // TODO 连接RM
             connectToResourceManager();
         }
     }
@@ -1405,6 +1395,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                         taskManagerConfiguration.getDefaultSlotResourceProfile(),
                         taskManagerConfiguration.getTotalResourceProfile());
 
+        // TODO 注意，注册成功后会执行TaskExecutorToResourceManagerConnection中的回调onRegistrationSuccess
         resourceManagerConnection =
                 new TaskExecutorToResourceManagerConnection(
                         log,
@@ -1415,6 +1406,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                         getMainThreadExecutor(),
                         new ResourceManagerRegistrationListener(),  // 多易教育： 连接对象中，会传入一个 RegistrationListener，用于连接成功后的回调通知
                         taskExecutorRegistration);
+
+        // TODO 开始连接
         resourceManagerConnection.start();
     }
 
@@ -1424,7 +1417,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             InstanceID taskExecutorRegistrationId,
             ClusterInformation clusterInformation) {
 
-        //多易教育: 向 resourceManager发送slot报告
+        //TODO 多易教育: 向resourceManager发送slot报告
+        // TODO 发送请求slot信息
         final CompletableFuture<Acknowledge> slotReportResponseFuture =
                 resourceManagerGateway.sendSlotReport(
                         getResourceID(),
@@ -1546,7 +1540,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     }
 
     private void internalOfferSlotsToJobManager(JobTable.Connection jobManagerConnection) {
-        //多易教育: jobId和jobManagerConnection一一对应
+        //TODO 多易教育: jobId和jobManagerConnection一一对应
         final JobID jobId = jobManagerConnection.getJobId();
 
         if (taskSlotTable.hasAllocatedSlots(jobId)) {
@@ -1554,32 +1548,32 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
             final JobMasterGateway jobMasterGateway = jobManagerConnection.getJobManagerGateway();
 
-            //多易教育: 取出为指定job已分配的slots，称之为保留slots
-            final Iterator<TaskSlot<Task>> reservedSlotsIterator =
-                    taskSlotTable.getAllocatedSlots(jobId);
+            //TODO 多易教育: 取出为指定job已分配的slots，称之为保留slots
+            final Iterator<TaskSlot<Task>> reservedSlotsIterator = taskSlotTable.getAllocatedSlots(jobId);
             final JobMasterId jobMasterId = jobManagerConnection.getJobMasterId();
 
             final Collection<SlotOffer> reservedSlots = new HashSet<>(2);
 
-            //多易教育: 将slot封装为SlotOffer
+            //TODO 多易教育: 将slot封装为SlotOffer
             while (reservedSlotsIterator.hasNext()) {
                 SlotOffer offer = reservedSlotsIterator.next().generateSlotOffer();
                 reservedSlots.add(offer);
             }
 
-            //多易教育: 为job生成一个随机uuid作为offerId
+            //TODO 多易教育: 为job生成一个随机uuid作为offerId
             final UUID slotOfferId = UUID.randomUUID();
-            //多易教育: 注册hashMap中
+            //TODO 多易教育: 注册hashMap中
             currentSlotOfferPerJob.put(jobId, slotOfferId);
 
+            // TODO 连接jobMaster（jobManager），提供slot
             CompletableFuture<Collection<SlotOffer>> acceptedSlotsFuture =
-                    // 多易教育:  通过gateway rpc请求jobMaster，提供slot
+                    // TODO 多易教育:  通过gateway rpc请求jobMaster，提供slot
                     jobMasterGateway.offerSlots(
                             getResourceID(),
                             reservedSlots,
                             taskManagerConfiguration.getRpcTimeout());
 
-            //多易教育: 异步请求完成后，对offer的接受情况进行处理
+            //TODO 多易教育: 异步请求完成后，对offer的接受情况进行处理
             acceptedSlotsFuture.whenCompleteAsync(
                     handleAcceptedSlotOffers(
                             jobId, jobMasterGateway, jobMasterId, reservedSlots, slotOfferId),
@@ -2292,11 +2286,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
         @Override
         public void notifyLeaderAddress(final String leaderAddress, final UUID leaderSessionID) {
-            runAsync(
-                    () ->
-                            notifyOfNewResourceManagerLeader(
-                                    leaderAddress,
-                                    ResourceManagerId.fromUuidOrNull(leaderSessionID)));
+            // TODO 获得新的RM地址
+            runAsync(() -> notifyOfNewResourceManagerLeader(leaderAddress, ResourceManagerId.fromUuidOrNull(leaderSessionID)));
         }
 
         @Override
@@ -2374,7 +2365,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                         //noinspection ObjectEquality
                         if (resourceManagerConnection == connection) {
                             try {
-                                //多易教育: 注册成功后，会确认连接，并在确认过程中发送slot报告
+                                //TODO 多易教育: 注册成功后，会确认连接，并在确认过程中发送slot报告
                                 establishResourceManagerConnection(
                                         resourceManagerGateway,
                                         resourceManagerId,

@@ -101,13 +101,18 @@ public abstract class RegisteredRpcConnection<
         checkState(
                 !isConnected() && pendingRegistration == null,
                 "The RPC connection is already started");
-        // 多易教育: 创建 RetryingRegistration
+
+        // TODO 多易教育: 创建 RetryingRegistration
+        // TODO 创建jobManager向resourceManager的注册
         final RetryingRegistration<F, G, S, R> newRegistration = createNewRegistration();
-        // 多易教育: 判断是否有挂起中的registration
+        // TODO 多易教育: 判断是否有挂起中的registration
         //  如果没有，则启动registration，否则取消本次并行的registration
         //  此处要更新的字段为： 本对象的 "pendingRegistration"
         if (REGISTRATION_UPDATER.compareAndSet(this, null, newRegistration)) {
             newRegistration.startRegistration();  // 多易教育: 启动连接注册
+            // TODO 启动注册，如果注册成功执行回调函数
+            // TODO org.apache.flink.runtime.jobmaster.JobMaster.ResourceManagerConnection.onRegistrationSuccess
+            newRegistration.startRegistration();
         } else {
             // concurrent start operation
             newRegistration.cancel();

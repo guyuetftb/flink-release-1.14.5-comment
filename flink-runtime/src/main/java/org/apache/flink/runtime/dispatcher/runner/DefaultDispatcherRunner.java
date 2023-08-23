@@ -221,6 +221,8 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
         final DefaultDispatcherRunner dispatcherRunner =
                 new DefaultDispatcherRunner(
                         leaderElectionService, fatalErrorHandler, dispatcherLeaderProcessFactory);
+
+        // TODO org.apache.flink.runtime.dispatcher.runner.DispatcherRunnerLeaderElectionLifecycleManager#createFor
         return DispatcherRunnerLeaderElectionLifecycleManager.createFor(
                 dispatcherRunner, leaderElectionService);
     }

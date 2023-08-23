@@ -163,14 +163,13 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     protected void initializeInternal() throws Exception {
         final YarnContainerEventHandler yarnContainerEventHandler = new YarnContainerEventHandler();
         try {
-            resourceManagerClient =
-                    yarnResourceManagerClientFactory.createResourceManagerClient(
-                            yarnHeartbeatIntervalMillis, yarnContainerEventHandler);
+            // TODO 创建并启动Yarn的resourceManager客户端，用于向Yarn申请资源
+            resourceManagerClient = yarnResourceManagerClientFactory.createResourceManagerClient(yarnHeartbeatIntervalMillis, yarnContainerEventHandler);
             resourceManagerClient.init(yarnConfig);
             resourceManagerClient.start();
 
-            final RegisterApplicationMasterResponse registerApplicationMasterResponse =
-                    registerApplicationMaster();
+            // TODO 注册AppMaster
+            final RegisterApplicationMasterResponse registerApplicationMasterResponse = registerApplicationMaster();
             getContainersFromPreviousAttempts(registerApplicationMasterResponse);
             taskExecutorProcessSpecContainerResourcePriorityAdapter =
                     new TaskExecutorProcessSpecContainerResourcePriorityAdapter(
@@ -182,8 +181,8 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
             throw new ResourceManagerException("Could not start resource manager client.", e);
         }
 
-        nodeManagerClient =
-                yarnNodeManagerClientFactory.createNodeManagerClient(yarnContainerEventHandler);
+        // TODO 创建并启动Yarn的nodeManager 客户端，用于启动taskManager
+        nodeManagerClient = yarnNodeManagerClientFactory.createNodeManagerClient(yarnContainerEventHandler);
         nodeManagerClient.init(yarnConfig);
         nodeManagerClient.start();
     }
@@ -219,17 +218,14 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
             ApplicationStatus finalStatus, @Nullable String optionalDiagnostics) {
         // first, de-register from YARN
         final FinalApplicationStatus yarnStatus = getYarnStatus(finalStatus);
-        log.info(
-                "Unregister application from the YARN Resource Manager with final status {}.",
-                yarnStatus);
+        log.info("Unregister application from the YARN Resource Manager with final status {}.", yarnStatus);
 
         final Optional<URL> historyServerURL = HistoryServerUtils.getHistoryServerURL(flinkConfig);
 
         final String appTrackingUrl = historyServerURL.map(URL::toString).orElse("");
 
         try {
-            resourceManagerClient.unregisterApplicationMaster(
-                    yarnStatus, optionalDiagnostics, appTrackingUrl);
+            resourceManagerClient.unregisterApplicationMaster(yarnStatus, optionalDiagnostics, appTrackingUrl);
         } catch (YarnException | IOException e) {
             log.error("Could not unregister the application master.", e);
         }
@@ -259,6 +255,8 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
         } else {
             final Priority priority = priorityAndResourceOpt.get().getPriority();
             final Resource resource = priorityAndResourceOpt.get().getResource();
+
+            // TODO yarn resourceManager 客户端向Yarn请求资源，发起添加Container的请求
             resourceManagerClient.addContainerRequest(getContainerRequest(resource, priority));
 
             // make sure we transmit the request fast and receive fast news of granted allocations
@@ -290,12 +288,8 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     // ------------------------------------------------------------------------
 
     private void onContainersOfPriorityAllocated(Priority priority, List<Container> containers) {
-        final Optional<
-                        TaskExecutorProcessSpecContainerResourcePriorityAdapter
-                                .TaskExecutorProcessSpecAndResource>
-                taskExecutorProcessSpecAndResourceOpt =
-                        taskExecutorProcessSpecContainerResourcePriorityAdapter
-                                .getTaskExecutorProcessSpecAndResource(priority);
+        final Optional<TaskExecutorProcessSpecContainerResourcePriorityAdapter.TaskExecutorProcessSpecAndResource>
+                taskExecutorProcessSpecAndResourceOpt = taskExecutorProcessSpecContainerResourcePriorityAdapter.getTaskExecutorProcessSpecAndResource(priority);
 
         Preconditions.checkState(
                 taskExecutorProcessSpecAndResourceOpt.isPresent(),
@@ -310,11 +304,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
         final Queue<CompletableFuture<YarnWorkerNode>> pendingRequestResourceFutures =
                 requestResourceFutures.getOrDefault(taskExecutorProcessSpec, new LinkedList<>());
 
-        log.info(
-                "Received {} containers with priority {}, {} pending container requests.",
-                containers.size(),
-                priority,
-                pendingRequestResourceFutures.size());
+        log.info("Received {} containers with priority {}, {} pending container requests.", containers.size(), priority, pendingRequestResourceFutures.size());
 
         final Iterator<Container> containerIterator = containers.iterator();
         final Iterator<AMRMClient.ContainerRequest> pendingContainerRequestIterator =
@@ -323,6 +313,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
                         .iterator();
 
         int numAccepted = 0;
+
         while (containerIterator.hasNext() && pendingContainerRequestIterator.hasNext()) {
             final Container container = containerIterator.next();
             final AMRMClient.ContainerRequest pendingRequest =
@@ -337,8 +328,8 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
                 requestResourceFutures.remove(taskExecutorProcessSpec);
             }
 
-            startTaskExecutorInContainerAsync(
-                    container, taskExecutorProcessSpec, resourceId, requestResourceFuture);
+            // TODO 在容器中启动TaskExecutor，异步启动
+            startTaskExecutorInContainerAsync(container, taskExecutorProcessSpec, resourceId, requestResourceFuture);
             removeContainerRequest(pendingRequest);
 
             numAccepted++;
@@ -377,14 +368,12 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
             TaskExecutorProcessSpec taskExecutorProcessSpec,
             ResourceID resourceId,
             CompletableFuture<YarnWorkerNode> requestResourceFuture) {
+
+        // TODO 创建TaskExecutor
         final CompletableFuture<ContainerLaunchContext> containerLaunchContextFuture =
                 FutureUtils.supplyAsync(
-                        () ->
-                                createTaskExecutorLaunchContext(
-                                        resourceId,
-                                        container.getNodeId().getHost(),
-                                        taskExecutorProcessSpec),
-                        getIoExecutor());
+                        () -> createTaskExecutorLaunchContext(resourceId, container.getNodeId().getHost(), taskExecutorProcessSpec), getIoExecutor()
+                );
 
         FutureUtils.assertNoException(
                 containerLaunchContextFuture.handleAsync(
@@ -430,24 +419,18 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
         final ContaineredTaskManagerParameters taskManagerParameters =
                 ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec);
 
-        log.info(
-                "TaskExecutor {} will be started on {} with {}.",
-                containerId.getStringWithMetadata(),
-                host,
-                taskExecutorProcessSpec);
+        log.info("TaskExecutor {} will be started on {} with {}.", containerId.getStringWithMetadata(), host, taskExecutorProcessSpec);
 
         final Configuration taskManagerConfig = BootstrapTools.cloneConfiguration(flinkConfig);
-        taskManagerConfig.set(
-                TaskManagerOptions.TASK_MANAGER_RESOURCE_ID, containerId.getResourceIdString());
-        taskManagerConfig.set(
-                TaskManagerOptionsInternal.TASK_MANAGER_RESOURCE_ID_METADATA,
-                containerId.getMetadata());
+        taskManagerConfig.set(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID, containerId.getResourceIdString());
+        taskManagerConfig.set(TaskManagerOptionsInternal.TASK_MANAGER_RESOURCE_ID_METADATA, containerId.getMetadata());
 
-        final String taskManagerDynamicProperties =
-                BootstrapTools.getDynamicPropertiesAsString(flinkClientConfig, taskManagerConfig);
+        final String taskManagerDynamicProperties = BootstrapTools.getDynamicPropertiesAsString(flinkClientConfig, taskManagerConfig);
 
         log.debug("TaskManager configuration: {}", taskManagerConfig);
 
+        // TODO 创建TaskExecutor
+        // TODO 注册taskManagerMainClass，容器内调用这个YarnTaskExecutorRunner.class的main方法来启动Flink的Taskmanager
         final ContainerLaunchContext taskExecutorLaunchContext =
                 Utils.createTaskExecutorContext(
                         flinkConfig,
@@ -602,8 +585,8 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
                         checkInitialized();
                         log.info("Received {} containers.", containers.size());
 
-                        for (Map.Entry<Priority, List<Container>> entry :
-                                groupContainerByPriority(containers).entrySet()) {
+                        for (Map.Entry<Priority, List<Container>> entry : groupContainerByPriority(containers).entrySet()) {
+                            // TODO 按优先级分配容器
                             onContainersOfPriorityAllocated(entry.getKey(), entry.getValue());
                         }
 

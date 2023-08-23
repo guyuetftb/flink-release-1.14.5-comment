@@ -67,24 +67,23 @@ public class AbstractJobClusterExecutor<
             @Nonnull final Configuration configuration,
             @Nonnull final ClassLoader userCodeClassloader)
             throws Exception {
+        //TODO Client端StreamGraph(实现了Pipeline接口的类)转换成JobGraph
         final JobGraph jobGraph = PipelineExecutorUtils.getJobGraph(pipeline, configuration);
 
-        try (final ClusterDescriptor<ClusterID> clusterDescriptor =
-                clusterClientFactory.createClusterDescriptor(configuration)) {
-            final ExecutionConfigAccessor configAccessor =
-                    ExecutionConfigAccessor.fromConfiguration(configuration);
+        //TODO 集群描述器 Yarn和Flink的集群环境信息
+        try (final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(configuration)) {
+            final ExecutionConfigAccessor configAccessor = ExecutionConfigAccessor.fromConfiguration(configuration);
 
-            final ClusterSpecification clusterSpecification =
-                    clusterClientFactory.getClusterSpecification(configuration);
+            //TODO 获取集群配置 JM内存 TM内存 TM中Slot个数等信息
+            final ClusterSpecification clusterSpecification = clusterClientFactory.getClusterSpecification(configuration);
 
+            //TODO 部署并启动集群中的各个进程
             final ClusterClientProvider<ClusterID> clusterClientProvider =
-                    clusterDescriptor.deployJobCluster(
-                            clusterSpecification, jobGraph, configAccessor.getDetachedMode());
+                    clusterDescriptor.deployJobCluster(clusterSpecification, jobGraph, configAccessor.getDetachedMode());
             LOG.info("Job has been submitted with JobID " + jobGraph.getJobID());
 
             return CompletableFuture.completedFuture(
-                    new ClusterClientJobClientAdapter<>(
-                            clusterClientProvider, jobGraph.getJobID(), userCodeClassloader));
+                    new ClusterClientJobClientAdapter<>(clusterClientProvider, jobGraph.getJobID(), userCodeClassloader));
         }
     }
 }

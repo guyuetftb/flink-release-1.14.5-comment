@@ -147,7 +147,7 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
                 IterableUtils.toStream(schedulingTopology.getAllPipelinedRegions())
                         .filter(this::isSourceRegion)
                         .collect(Collectors.toSet());
-        // 多易教育:  开始进行task调度
+        // TODO 多易教育:  开始进行task调度
         maybeScheduleRegions(sourceRegions);
     }
 
@@ -215,7 +215,7 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
 
         final Map<ConsumedPartitionGroup, Boolean> consumableStatusCache = new HashMap<>();
         for (SchedulingPipelinedRegion region : regionsSorted) {
-            // 多易教育:  逐个region进行task调度
+            // TODO 多易教育:  逐个region进行task调度
             maybeScheduleRegion(region, consumableStatusCache);
         }
     }
@@ -234,7 +234,7 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
         final List<ExecutionVertexDeploymentOption> vertexDeploymentOptions =
                 SchedulingStrategyUtils.createExecutionVertexDeploymentOptions(
                         regionVerticesSorted.get(region), id -> deploymentOption);
-        //多易教育: 到这里，为task分配槽位并部署执行，方法底层的流程很长，最终会走到 taskManagerGateway.submitTask()
+        //TODO 多易教育: 到这里，为task分配槽位并部署执行，方法底层的流程很长，最终会走到 taskManagerGateway.submitTask()
         schedulerOperations.allocateSlotsAndDeploy(vertexDeploymentOptions);
     }
 

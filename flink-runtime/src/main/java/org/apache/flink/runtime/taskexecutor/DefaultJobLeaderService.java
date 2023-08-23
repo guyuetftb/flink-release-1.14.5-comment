@@ -125,8 +125,7 @@ public class DefaultJobLeaderService implements JobLeaderService {
 
             this.ownerAddress = Preconditions.checkNotNull(initialOwnerAddress);
             this.rpcService = Preconditions.checkNotNull(initialRpcService);
-            this.highAvailabilityServices =
-                    Preconditions.checkNotNull(initialHighAvailabilityServices);
+            this.highAvailabilityServices = Preconditions.checkNotNull(initialHighAvailabilityServices);
             this.jobLeaderListener = Preconditions.checkNotNull(initialJobLeaderListener);
             state = DefaultJobLeaderService.State.STARTED;
         }
@@ -180,32 +179,29 @@ public class DefaultJobLeaderService implements JobLeaderService {
         }
     }
 
-    //多易教育: 根据给定的jobId和目标JobManager地址，来注册job，会创建leader连接服务和监听器
+    //TODO 多易教育: 根据给定的jobId和目标JobManager地址，来注册job，会创建leader连接服务和监听器
     @Override
     public void addJob(final JobID jobId, final String defaultTargetAddress) throws Exception {
-        Preconditions.checkState(
-                DefaultJobLeaderService.State.STARTED == state,
-                "The service is currently not running.");
+        Preconditions.checkState(DefaultJobLeaderService.State.STARTED == state, "The service is currently not running.");
 
         LOG.info("Add job {} for job leader monitoring.", jobId);
 
-        //多易教育: StandAlone模式下，创建的是： StandaloneLeaderRetrievalService
-        final LeaderRetrievalService leaderRetrievalService =
-                highAvailabilityServices.getJobManagerLeaderRetriever(jobId, defaultTargetAddress);
+        //TODO 多易教育: StandAlone模式下，创建的是： StandaloneLeaderRetrievalService
+        final LeaderRetrievalService leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(jobId, defaultTargetAddress);
 
-        DefaultJobLeaderService.JobManagerLeaderListener jobManagerLeaderListener =
-                new JobManagerLeaderListener(jobId);
+        DefaultJobLeaderService.JobManagerLeaderListener jobManagerLeaderListener = new JobManagerLeaderListener(jobId);
 
         final Tuple2<LeaderRetrievalService, JobManagerLeaderListener> oldEntry =
-                jobLeaderServices.put(
-                        jobId, Tuple2.of(leaderRetrievalService, jobManagerLeaderListener));
-        //多易教育: 如果此job之前的leaderRetrieval和listener已存在，则停掉他们
+                jobLeaderServices.put(jobId, Tuple2.of(leaderRetrievalService, jobManagerLeaderListener));
+
+        //TODO 多易教育: 如果此job之前的leaderRetrieval和listener已存在，则停掉他们
         if (oldEntry != null) {
             oldEntry.f0.stop();  //多易教育: 会关闭此前的老leader的rpc连接
             oldEntry.f1.stop();  //多易教育: 关闭老leader的监听器和rpc连接
         }
-        //多易教育: 开启leader连接服务（StandaloneLeaderRetrievalService）
-        // 在standalone模式下，start仅仅只是调用一下listener的callback方法（notifyLeaderAddress）而已
+
+        //TODO 多易教育: 开启leader连接服务（StandaloneLeaderRetrievalService）
+        // TODO 在standalone模式下，start仅仅只是调用一下listener的callback方法（notifyLeaderAddress）而已
         leaderRetrievalService.start(jobManagerLeaderListener);
     }
 

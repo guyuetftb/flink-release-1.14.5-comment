@@ -96,6 +96,7 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
         YarnJobClusterEntrypoint yarnJobClusterEntrypoint =
                 new YarnJobClusterEntrypoint(configuration);
 
+        // TODO run集群的入口
         ClusterEntrypoint.runClusterEntrypoint(yarnJobClusterEntrypoint);
     }
 }

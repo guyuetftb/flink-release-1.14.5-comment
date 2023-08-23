@@ -117,12 +117,14 @@ public class DefaultDispatcherResourceManagerComponentFactory
         ResourceManagerService resourceManagerService = null;
         DispatcherRunner dispatcherRunner = null;
 
-        try { //TODO   BY DEEP SEA : StandaloneLeaderRetrievalService  akka.tcp://flink@localhost:6123/user/rpc/dispatcher_*
-            dispatcherLeaderRetrievalService =
-                    highAvailabilityServices.getDispatcherLeaderRetriever();
+        try {
+            // TODO 获取DispatcherLeader 高可用
+            //TODO   BY DEEP SEA : StandaloneLeaderRetrievalService  akka.tcp://flink@localhost:6123/user/rpc/dispatcher_*
+            dispatcherLeaderRetrievalService = highAvailabilityServices.getDispatcherLeaderRetriever();
+
+            // TODO 获取ResourceManagerLeader 高可用
             //TODO   BY DEEP SEA : StandaloneLeaderRetrievalService
-            resourceManagerRetrievalService =
-                    highAvailabilityServices.getResourceManagerLeaderRetriever();
+            resourceManagerRetrievalService = highAvailabilityServices.getResourceManagerLeaderRetriever();
 
             // dispatcher gateway 获取器
             final LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever =
@@ -140,15 +142,14 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             ResourceManagerId::fromUuid,
                             new ExponentialBackoffRetryStrategy(
                                     12, Duration.ofMillis(10), Duration.ofMillis(50)));
-            // 线程池
+            // TODO 线程池
             final ScheduledExecutorService executor =
                     WebMonitorEndpoint.createExecutorService(
                             configuration.getInteger(RestOptions.SERVER_NUM_THREADS),
                             configuration.getInteger(RestOptions.SERVER_THREAD_PRIORITY),
                             "DispatcherRestEndpoint");
 
-            final long updateInterval =
-                    configuration.getLong(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL);
+            final long updateInterval = configuration.getLong(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL);
             final MetricFetcher metricFetcher =
                     updateInterval == 0
                             ? VoidMetricFetcher.INSTANCE
@@ -157,7 +158,9 @@ public class DefaultDispatcherResourceManagerComponentFactory
                                     metricQueryServiceRetriever,
                                     dispatcherGatewayRetriever,
                                     executor);
-            // web服务 endpoint
+
+            //TODO 创建并启动web监控 供web节面查看job执行情况
+            //TODO web服务 endpoint
             webMonitorEndpoint =
                     restEndpointFactory.createRestEndpoint(
                             configuration,
@@ -168,12 +171,12 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             metricFetcher,
                             highAvailabilityServices.getClusterRestEndpointLeaderElectionService(),
                             fatalErrorHandler);
-            // 启动web服务 endpoint
+            // TODO 启动web服务 endpoint
             log.debug("Starting Dispatcher REST endpoint.");
             webMonitorEndpoint.start();
 
             final String hostname = RpcUtils.getHostname(rpcService);
-            // resource manager service服务创建
+            // TODO resource manager service服务创建
             resourceManagerService =
                     ResourceManagerServiceImpl.create(
                             resourceManagerFactory,
@@ -208,6 +211,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             metricRegistry.getMetricQueryServiceGatewayRpcAddress(),
                             ioExecutor);
 
+            //TODO 创建并启动 Dispatcher, 由Dispatcher启动JobManager
             log.debug("Starting Dispatcher.");
             dispatcherRunner =
                     dispatcherRunnerFactory.createDispatcherRunner(
@@ -218,6 +222,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             rpcService,
                             partialDispatcherServices);
 
+            //TODO 启动 ResourceManager
             log.debug("Starting ResourceManagerService.");
             resourceManagerService.start();
 

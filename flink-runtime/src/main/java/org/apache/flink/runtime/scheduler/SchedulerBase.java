@@ -595,8 +595,9 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     public final void startScheduling() {
         mainThreadExecutor.assertRunningInMainThread();
         registerJobMetrics();
-        operatorCoordinatorHandler.startAllOperatorCoordinators();  //多易教育: 启动所有的operatorCoordinator
-        //多易教育: Job调度内部方法
+        //TODO 多易教育: 启动所有的operatorCoordinator
+        operatorCoordinatorHandler.startAllOperatorCoordinators();
+        //TODO 多易教育: Job调度内部方法
         startSchedulingInternal();
     }
 
@@ -605,7 +606,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         jobManagerJobMetricGroup.gauge(MetricNames.FULL_RESTARTS, this::getNumberOfRestarts);
     }
 
-    protected abstract void startSchedulingInternal();  //多易教育: 走实现 DefaultScheduler
+    //TODO 多易教育: 走实现 DefaultScheduler
+    protected abstract void startSchedulingInternal();
 
     @Override
     public CompletableFuture<Void> closeAsync() {

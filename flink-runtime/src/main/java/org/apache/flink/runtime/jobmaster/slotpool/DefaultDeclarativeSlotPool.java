@@ -188,6 +188,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         final Collection<SlotOffer> acceptedSlotOffers = new ArrayList<>();
         final Collection<AllocatedSlot> acceptedSlots = new ArrayList<>();
 
+        // TODO 提供slot
         for (SlotOffer offer : offers) {
             if (slotPool.containsSlot(offer.getAllocationId())) {
                 // we have already accepted this offer

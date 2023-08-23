@@ -626,8 +626,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     public CompletableFuture<Collection<SlotOffer>> offerSlots(
             final ResourceID taskManagerId, final Collection<SlotOffer> slots, final Time timeout) {
 
-        Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManager =
-                registeredTaskManagers.get(taskManagerId);
+        Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManager = registeredTaskManagers.get(taskManagerId);
 
         if (taskManager == null) {
             return FutureUtils.completedExceptionally(
@@ -636,10 +635,11 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
         final TaskManagerLocation taskManagerLocation = taskManager.f0;
         final TaskExecutorGateway taskExecutorGateway = taskManager.f1;
-        //多易教育: 将taskExecutor网关和fencingToken，封装为taskManager网关
+        //TODO 多易教育: 将taskExecutor网关和fencingToken，封装为taskManager网关
         final RpcTaskManagerGateway rpcTaskManagerGateway =
                 new RpcTaskManagerGateway(taskExecutorGateway, getFencingToken());
 
+        // TODO jobManger中的slotpool提供slot
         return CompletableFuture.completedFuture(
                 slotPoolService.offerSlots(taskManagerLocation, rpcTaskManagerGateway, slots));
     }
@@ -875,12 +875,14 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     // -----------------------------------------------------------------
 
     private void startJobExecution() throws Exception {
+        // TODO 验证是否在主线程
         validateRunsInMainThread();
 
         JobShuffleContext context = new JobShuffleContextImpl(jobGraph.getJobID(), this);
         shuffleMaster.registerJob(context);
 
-        // 多易教育: 启动job master的各类服务： task manager心跳服务，资源服务心跳服务，slot pool服务……
+        // TODO 多易教育: 启动job master的各类服务： task manager心跳服务，资源服务心跳服务，slot pool服务……
+        // TODO 真正启动jobMaster（jobManager）服务
         startJobMasterServices();
 
         log.info(
@@ -889,17 +891,20 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                 jobGraph.getJobID(),
                 getFencingToken());
 
-        // 多易教育: 开始调度
+        // TODO 多易教育: 开始调度
         startScheduling();
     }
 
     private void startJobMasterServices() throws Exception {
         try {
+            // TODO 启动jobManager、taskManager之间的心跳服务
             this.taskManagerHeartbeatManager = createTaskManagerHeartbeatManager(heartbeatServices);
-            this.resourceManagerHeartbeatManager =
-                    createResourceManagerHeartbeatManager(heartbeatServices);
+
+            // TODO 启动jobManager、resourceManager之间的心跳服务
+            this.resourceManagerHeartbeatManager = createResourceManagerHeartbeatManager(heartbeatServices);
 
             // start the slot pool make sure the slot pool now accepts messages for this leader
+            // TODO 启动slotPool
             slotPoolService.start(getFencingToken(), getAddress(), getMainThreadExecutor());
 
             // job is ready to go, try to establish connection with resource manager
@@ -973,7 +978,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     }
 
     private void startScheduling() {
-        // 多易教育: 走的实现类：SchedulerBase的startScheduling()
+        // TODO 多易教育: 走的实现类：SchedulerBase的startScheduling()
         //  然后走的 DefaultScheduler.startSchedulingInternal()
         schedulerNG.startScheduling();
     }
@@ -1025,6 +1030,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         resourceManagerAddress =
                 createResourceManagerAddress(newResourceManagerAddress, resourceManagerId);
 
+        // TODO 重连接resourceManager
         reconnectToResourceManager(
                 new FlinkException(
                         String.format(
@@ -1046,7 +1052,9 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     }
 
     private void reconnectToResourceManager(Exception cause) {
+        // TODO 关闭与resourceManager的连接
         closeResourceManagerConnection(cause);
+        // TODO 尝试重新连接resourceManager
         tryConnectToResourceManager();
     }
 
@@ -1063,6 +1071,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
         log.info("Connecting to ResourceManager {}", resourceManagerAddress);
 
+        // TODO 创建resourceManager连接对象
         resourceManagerConnection =
                 new ResourceManagerConnection(
                         log,
@@ -1074,6 +1083,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         resourceManagerAddress.getResourceManagerId(),
                         futureExecutor);
 
+        // TODO 启动
         resourceManagerConnection.start();
     }
 
@@ -1085,19 +1095,15 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                 && Objects.equals(
                         resourceManagerConnection.getTargetLeaderId(), resourceManagerId)) {
 
-            log.info(
-                    "JobManager successfully registered at ResourceManager, leader id: {}.",
-                    resourceManagerId);
+            log.info("JobManager successfully registered at ResourceManager, leader id: {}.", resourceManagerId);
 
-            final ResourceManagerGateway resourceManagerGateway =
-                    resourceManagerConnection.getTargetGateway();
+            final ResourceManagerGateway resourceManagerGateway = resourceManagerConnection.getTargetGateway();
 
             final ResourceID resourceManagerResourceId = success.getResourceManagerResourceId();
 
-            establishedResourceManagerConnection =
-                    new EstablishedResourceManagerConnection(
-                            resourceManagerGateway, resourceManagerResourceId);
+            establishedResourceManagerConnection = new EstablishedResourceManagerConnection(resourceManagerGateway, resourceManagerResourceId);
 
+            // TODO slotPool连接resourceManager
             slotPoolService.connectToResourceManager(resourceManagerGateway);
 
             resourceManagerHeartbeatManager.monitorTarget(
@@ -1209,6 +1215,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
         @Override
         public void notifyLeaderAddress(final String leaderAddress, final UUID leaderSessionID) {
+            // TODO 通知ResourceManager Leader
             runAsync(
                     () ->
                             notifyOfNewResourceManagerLeader(
@@ -1299,6 +1306,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         // filter out outdated connections
                         //noinspection ObjectEquality
                         if (this == resourceManagerConnection) {
+                            // TODO 建立与resourceManager的连接
                             establishResourceManagerConnection(success);
                         }
                     });

@@ -301,7 +301,7 @@ public class DeclarativeSlotManager implements SlotManager {
     /**
      * Registers a new task manager at the slot manager. This will make the task managers slots
      * known and, thus, available for allocation.
-     * 多易教育： 在slotManager中注册一个新的task manager；这会让这些slots变得可知，从而可用于分配
+     * TODO  多易教育： 在slotManager中注册一个新的task manager；这会让这些slots变得可知，从而可用于分配
      *
      * @param taskExecutorConnection for the new task manager
      * @param initialSlotReport for the new task manager
@@ -323,31 +323,29 @@ public class DeclarativeSlotManager implements SlotManager {
                 taskExecutorConnection.getInstanceID());
 
         // we identify task managers by their instance id
-        //多易教育: 1.如果taskExecutor已经注册过，则通过DefaultSlotTracker更新slot状态
+        //TODO 多易教育: 1.如果taskExecutor已经注册过，则通过DefaultSlotTracker更新slot状态
         // 返回false
         if (taskExecutorManager.isTaskManagerRegistered(taskExecutorConnection.getInstanceID())) {
-            LOG.debug(
-                    "Task executor {} was already registered.",
-                    taskExecutorConnection.getResourceID());
+            LOG.debug("Task executor {} was already registered.", taskExecutorConnection.getResourceID());
             reportSlotStatus(taskExecutorConnection.getInstanceID(), initialSlotReport);
             return false;
         }
-        //多易教育: 2.如果taskExecutor尚为被注册过，则向TaskExecutorManager组件注册该taskExecutor
+
+        //TODO  多易教育: 2.如果taskExecutor尚为被注册过，则向TaskExecutorManager组件注册该taskExecutor
         else {
             if (!taskExecutorManager.registerTaskManager(
                     taskExecutorConnection,
                     initialSlotReport,
                     totalResourceProfile,
                     defaultSlotResourceProfile)) {
-                LOG.debug(
-                        "Task executor {} could not be registered.",
-                        taskExecutorConnection.getResourceID());
+                LOG.debug("Task executor {} could not be registered.", taskExecutorConnection.getResourceID());
                 return false;
             }
 
             // register the new slots
-            //多易教育: 注册这一批新的slot
+            //TODO  多易教育: 注册这一批新的slot
             for (SlotStatus slotStatus : initialSlotReport) {
+                // TODO 注册Slot
                 slotTracker.addSlot(
                         slotStatus.getSlotID(),
                         slotStatus.getResourceProfile(),
@@ -355,7 +353,7 @@ public class DeclarativeSlotManager implements SlotManager {
                         slotStatus.getJobID());
             }
 
-            //多易教育: 检查咨询需求（fullFill掉匹配需求的request）
+            //TODO  多易教育: 检查咨询需求（fullFill掉匹配需求的request）
             checkResourceRequirements();
             return true;
         }
@@ -477,7 +475,7 @@ public class DeclarativeSlotManager implements SlotManager {
             return;
         }
 
-        //多易教育: 如果存在分配失败的slots，则尝试从pendingSlots中匹配
+        //TODO  多易教育: 如果存在分配失败的slots，则尝试从pendingSlots中匹配
         ResourceCounter pendingSlots =
                 ResourceCounter.withResources(
                         taskExecutorManager.getPendingTaskManagerSlots().stream()
@@ -501,7 +499,7 @@ public class DeclarativeSlotManager implements SlotManager {
         ResourceCounter outstandingRequirements = ResourceCounter.empty();
 
         for (ResourceRequirement resourceRequirement : missingResources) {
-            //多易教育: 分配slots，并返回无法满足的slots数
+            //TODO  多易教育: 分配slots，并返回无法满足的slots数
             int numMissingSlots =
                     internalTryAllocateSlots(
                             jobId, jobMasterTargetAddresses.get(jobId), resourceRequirement);
@@ -511,7 +509,7 @@ public class DeclarativeSlotManager implements SlotManager {
                                 resourceRequirement.getResourceProfile(), numMissingSlots);
             }
         }
-        //多易教育: 返回无法满足的slots数
+        //TODO  多易教育: 返回无法满足的slots数
         return outstandingRequirements;
     }
 
@@ -527,25 +525,25 @@ public class DeclarativeSlotManager implements SlotManager {
     private int internalTryAllocateSlots(
             JobID jobId, String targetAddress, ResourceRequirement resourceRequirement) {
         final ResourceProfile requiredResource = resourceRequirement.getResourceProfile();
-        //多易教育: 先从tracker中获取到所有的空闲slots
+        //TODO 多易教育: 先从tracker中获取到所有的空闲slots
         Collection<TaskManagerSlotInformation> freeSlots = slotTracker.getFreeSlots();
 
         int numUnfulfilled = 0;
-        //多易教育: 循环，逐个slot进行分配
+        //TODO 多易教育: 循环，逐个slot进行分配
         for (int x = 0; x < resourceRequirement.getNumberOfRequiredSlots(); x++) {
 
-            //多易教育: 先从空闲的slots中找出1个匹配需求的slot
+            //TODO 多易教育: 先从空闲的slots中找出1个匹配需求的slot
             final Optional<TaskManagerSlotInformation> reservedSlot =
                     slotMatchingStrategy.findMatchingSlot(
                             requiredResource, freeSlots, this::getNumberRegisteredSlotsOf);
             if (reservedSlot.isPresent()) {
                 // we do not need to modify freeSlots because it is indirectly modified by the
                 // allocation
-                //多易教育: 如果找到了匹配的slot，则分配它
+                //TODO 多易教育: 如果找到了匹配的slot，则分配它
                 allocateSlot(reservedSlot.get(), jobId, targetAddress, requiredResource);
             } else {
                 // exit loop early; we won't find a matching slot for this requirement
-                //多易教育: 如果没有找到，则直接退出循环了（不再继续查找）
+                //TODO 多易教育: 如果没有找到，则直接退出循环了（不再继续查找）
                 int numRemaining = resourceRequirement.getNumberOfRequiredSlots() - x;
                 numUnfulfilled += numRemaining;
                 break;
@@ -569,31 +567,33 @@ public class DeclarativeSlotManager implements SlotManager {
             String targetAddress,
             ResourceProfile resourceProfile) {
         final SlotID slotId = taskManagerSlot.getSlotId();
-        LOG.debug(
-                "Starting allocation of slot {} for job {} with resource profile {}.",
-                slotId,
-                jobId,
-                resourceProfile);
-        //多易教育: 获取taskExecutor的实例标识
+
+        LOG.debug("Starting allocation of slot {} for job {} with resource profile {}.", slotId, jobId, resourceProfile);
+
+        //TODO 多易教育: 获取taskExecutor的实例标识
         final InstanceID instanceId = taskManagerSlot.getInstanceId();
         if (!taskExecutorManager.isTaskManagerRegistered(instanceId)) {
             throw new IllegalStateException(
                     "Could not find a registered task manager for instance id " + instanceId + '.');
         }
 
-        final TaskExecutorConnection taskExecutorConnection =
-                taskManagerSlot.getTaskManagerConnection();
+        final TaskExecutorConnection taskExecutorConnection = taskManagerSlot.getTaskManagerConnection();
         final TaskExecutorGateway gateway = taskExecutorConnection.getTaskExecutorGateway();
 
-        //多易教育: resourceManager在分配slot时为这一次分配生成一个AllocationID
+        //TODO 多易教育: resourceManager在分配slot时为这一次分配生成一个AllocationID
         final AllocationID allocationId = new AllocationID();
 
-        slotTracker.notifyAllocationStart(slotId, jobId);  //多易教育: 通知slotTracker，分配开始
-        taskExecutorManager.markUsed(instanceId);  // 用executorManager标注 executor实例被使用
-        pendingSlotAllocations.put(slotId, allocationId); // 目标slotId和allocationId放入pendingSlotAllocations
+        //TODO 多易教育: 通知slotTracker，分配开始
+        slotTracker.notifyAllocationStart(slotId, jobId);
+
+        // TODO 用executorManager标注 executor实例被使用
+        taskExecutorManager.markUsed(instanceId);
+
+        // TODO 目标slotId和allocationId放入pendingSlotAllocations
+        pendingSlotAllocations.put(slotId, allocationId);
 
         // RPC call to the task manager
-        //多易教育: 通过rpc调用，向 taskExecutor 请求slot
+        //TODO 多易教育: 通过rpc调用，向 taskExecutor 请求slot
         CompletableFuture<Acknowledge> requestFuture =
                 gateway.requestSlot(
                         slotId,
@@ -609,50 +609,34 @@ public class DeclarativeSlotManager implements SlotManager {
                         (Acknowledge acknowledge, Throwable throwable) -> {
                             final AllocationID currentAllocationForSlot =
                                     pendingSlotAllocations.get(slotId);
-                            if (currentAllocationForSlot == null
-                                    || !currentAllocationForSlot.equals(allocationId)) {
-                                LOG.debug(
-                                        "Ignoring slot allocation update from task executor {} for slot {} and job {}, because the allocation was already completed or cancelled.",
-                                        instanceId,
-                                        slotId,
-                                        jobId);
+                            if (currentAllocationForSlot == null || !currentAllocationForSlot.equals(allocationId)) {
+                                LOG.debug("Ignoring slot allocation update from task executor {} for slot {} and job {}, because the allocation was already completed or cancelled.", instanceId, slotId, jobId);
                                 return null;
                             }
+
                             if (acknowledge != null) {
-                                LOG.trace(
-                                        "Completed allocation of slot {} for job {}.",
-                                        slotId,
-                                        jobId);
-                                //多易教育: 通知分配完成,转移slot状态为Allocated
+
+                                LOG.trace("Completed allocation of slot {} for job {}.", slotId, jobId);
+                                //TODO 多易教育: 通知分配完成,转移slot状态为Allocated
                                 // 其中会调用：transitionSlotToAllocated(slots.get(slotId), jobId);
                                 slotTracker.notifyAllocationComplete(slotId, jobId);
                             } else {
+
                                 if (throwable instanceof SlotOccupiedException) {
-                                    SlotOccupiedException exception =
-                                            (SlotOccupiedException) throwable;
-                                    LOG.debug(
-                                            "Tried allocating slot {} for job {}, but it was already allocated for job {}.",
-                                            slotId,
-                                            jobId,
-                                            exception.getJobId());
+                                    SlotOccupiedException exception = (SlotOccupiedException) throwable;
+
+                                    LOG.debug("Tried allocating slot {} for job {}, but it was already allocated for job {}.", slotId, jobId, exception.getJobId());
                                     // report as a slot status to force the state transition
                                     // this could be a problem if we ever assume that the task
                                     // executor always reports about all slots
-                                    //多易教育: 如果是slot已被占用异常，则通过slotTracker强制更新状态
+                                    //TODO 多易教育: 如果是slot已被占用异常，则通过slotTracker强制更新状态
                                     slotTracker.notifySlotStatus(
                                             Collections.singleton(
-                                                    new SlotStatus(
-                                                            slotId,
-                                                            taskManagerSlot.getResourceProfile(),
-                                                            exception.getJobId(),
-                                                            exception.getAllocationId())));
+                                                    new SlotStatus(slotId, taskManagerSlot.getResourceProfile(), exception.getJobId(), exception.getAllocationId())));
                                 } else {
-                                    //多易教育: 如果是其他异常，则通过slotTracker释放slot
-                                    LOG.warn(
-                                            "Slot allocation for slot {} for job {} failed.",
-                                            slotId,
-                                            jobId,
-                                            throwable);
+
+                                    //TODO 多易教育: 如果是其他异常，则通过slotTracker释放slot
+                                    LOG.warn("Slot allocation for slot {} for job {} failed.", slotId, jobId, throwable);
                                     slotTracker.notifyFree(slotId);
                                 }
                                 checkResourceRequirements();
@@ -673,21 +657,21 @@ public class DeclarativeSlotManager implements SlotManager {
                 final MatchingResult matchingResult =
                         tryFulfillWithPendingSlots(profile, pendingSlots);
                 pendingSlots = matchingResult.getNewAvailableResources();
-                //多易教育: 如果匹配结果是失败的，则尝试分配worker并保留slot
+                //TODO 多易教育: 如果匹配结果是失败的，则尝试分配worker并保留slot
                 if (!matchingResult.isSuccessfulMatching()) {
                     final WorkerAllocationResult allocationResult =
                             tryAllocateWorkerAndReserveSlot(profile, pendingSlots);
 
-                    //多易教育: 从worker分配的结果中取到新的可用资源
+                    //TODO 多易教育: 从worker分配的结果中取到新的可用资源
                     pendingSlots = allocationResult.getNewAvailableResources();
-                    //多易教育: 如果worker分配的结果依然是不成功的
+                    //TODO 多易教育: 如果worker分配的结果依然是不成功的
                     if (!allocationResult.isSuccessfulAllocating()
                             && sendNotEnoughResourceNotifications) {
                         LOG.warn(
                                 "Could not fulfill resource requirements of job {}. Free slots: {}",
                                 jobId,
                                 slotTracker.getFreeSlots().size());
-                        //多易教育: 则向通过resourceActions(ResourceActionsImpl)回调，来向job所属的jobManager通知：可用资源不够
+                        //TODO 多易教育: 则向通过resourceActions(ResourceActionsImpl)回调，来向job所属的jobManager通知：可用资源不够
                         resourceActions.notifyNotEnoughResourcesAvailable(
                                 jobId, resourceTracker.getAcquiredResources(jobId));
                         return pendingSlots;

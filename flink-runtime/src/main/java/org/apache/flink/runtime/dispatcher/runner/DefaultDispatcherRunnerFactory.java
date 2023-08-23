@@ -58,6 +58,7 @@ public class DefaultDispatcherRunnerFactory implements DispatcherRunnerFactory {
                         partialDispatcherServices,
                         fatalErrorHandler);
 
+        // TODO org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunner#create
         return DefaultDispatcherRunner.create(
                 leaderElectionService, fatalErrorHandler, dispatcherLeaderProcessFactory);
     }

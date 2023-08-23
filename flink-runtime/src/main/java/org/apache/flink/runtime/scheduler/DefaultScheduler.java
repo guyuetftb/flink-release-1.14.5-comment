@@ -214,7 +214,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 "Starting scheduling with scheduling strategy [{}]",
                 schedulingStrategy.getClass().getName());
         transitionToRunning();
-        // 多易教育:  按实际调度策略，开始调度
+        // TODO 多易教育:  按实际调度策略，开始调度
         //  PipelinedRegionSchedulingStrategy.startScheduling
         schedulingStrategy.startScheduling();
     }
@@ -399,7 +399,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
         final Map<ExecutionVertexID, ExecutionVertexVersion> requiredVersionByVertex =
                 executionVertexVersioner.recordVertexModifications(verticesToDeploy);
-        //多易教育: 将每个vertices的状态转为： ExecutionState.SCHEDULED
+        //TODO 多易教育: 将每个vertices的状态转为： ExecutionState.SCHEDULED
         transitionToScheduled(verticesToDeploy);
 
         final List<SlotExecutionVertexAssignment> slotExecutionVertexAssignments =
@@ -410,7 +410,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                         requiredVersionByVertex,
                         deploymentOptionsByVertex,
                         slotExecutionVertexAssignments);
-        // 多易教育:  从这里，往下很长的流程，包含submitTask的流程
+        // TODO 多易教育:  从这里，往下很长的流程，包含submitTask的流程
+        // TODO 等待slot，部署任务
         waitForAllSlotsAndDeploy(deploymentHandles);
     }
 
@@ -464,11 +465,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                         })
                 .collect(Collectors.toList());
     }
-    // 多易教育:  本方法，调用deployAll(deploymentHandles)，进而会发起submitTask的流程
+
+    // TODO 多易教育:  本方法，调用deployAll(deploymentHandles)，进而会发起submitTask的流程
     private void waitForAllSlotsAndDeploy(final List<DeploymentHandle> deploymentHandles) {
         FutureUtils.assertNoException(
-                assignAllResourcesAndRegisterProducedPartitions(deploymentHandles)  //多易教育: 返回的是资源分配结果Future
-                        .handle(deployAll(deploymentHandles)));  // 多易教育:  deployAll=>开始调度
+                assignAllResourcesAndRegisterProducedPartitions(deploymentHandles)  //TODO 多易教育: 返回的是资源分配结果Future
+                        .handle(deployAll(deploymentHandles)));  // TODO 多易教育:  deployAll=>开始调度
     }
 
     private CompletableFuture<Void> assignAllResourcesAndRegisterProducedPartitions(
@@ -501,16 +503,17 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         return (ignored, throwable) -> {
             propagateIfNonNull(throwable);
             for (final DeploymentHandle deploymentHandle : deploymentHandles) {
-                //多易教育: 获取分配的logicalSlot
+                //TODO 多易教育: 获取分配的logicalSlot
                 final SlotExecutionVertexAssignment slotExecutionVertexAssignment =
                         deploymentHandle.getSlotExecutionVertexAssignment();
                 final CompletableFuture<LogicalSlot> slotAssigned =
                         slotExecutionVertexAssignment.getLogicalSlotFuture();
                 checkState(slotAssigned.isDone());
 
-                // 多易教育:  这里调用的deployOrHandleError(deploymentHandle)，就会发起submitTask的流程
+                //TODO 多易教育:  这里调用的deployOrHandleError(deploymentHandle)，就会发起submitTask的流程
+                // TODO 部署和异常处理
                 FutureUtils.assertNoException(
-                        slotAssigned.handle(deployOrHandleError(deploymentHandle))); // 多易教育:  部署或错误处理
+                        slotAssigned.handle(deployOrHandleError(deploymentHandle))); // TODO 多易教育:  部署或错误处理
             }
             return null;
         };
@@ -643,9 +646,9 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                         executionVertexId);
                 return null;
             }
-            // 多易教育:  这里发起的调用，就会走到submitTask()的流程
+            // TODO 多易教育:  这里发起的调用，就会走到submitTask()的流程
             if (throwable == null) {
-                deployTaskSafe(executionVertexId);  // 多易教育:  部署 task
+                deployTaskSafe(executionVertexId);  // TODO 多易教育:  部署 task
             } else {
                 handleTaskDeploymentFailure(executionVertexId, throwable);
             }
@@ -656,8 +659,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     private void deployTaskSafe(final ExecutionVertexID executionVertexId) {
         try {
             final ExecutionVertex executionVertex = getExecutionVertex(executionVertexId);
-            // 多易教育:  DefaultExecutionVertexOperations.deploy
-            executionVertexOperations.deploy(executionVertex);  // 多易教育:  部署 task
+            // TODO 多易教育:  DefaultExecutionVertexOperations.deploy
+            executionVertexOperations.deploy(executionVertex);  // TODO 多易教育:  部署 task
         } catch (Throwable e) {
             handleTaskDeploymentFailure(executionVertexId, e);
         }

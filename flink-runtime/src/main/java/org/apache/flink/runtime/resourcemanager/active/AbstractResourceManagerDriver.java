@@ -78,6 +78,7 @@ public abstract class AbstractResourceManagerDriver<WorkerType extends ResourceI
         this.mainThreadExecutor = Preconditions.checkNotNull(mainThreadExecutor);
         this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
 
+        // TODO YARN模式下初始化ResourceManager
         initializeInternal();
     }
 

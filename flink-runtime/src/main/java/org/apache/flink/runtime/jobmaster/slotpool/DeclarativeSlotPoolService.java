@@ -177,6 +177,7 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
             return Collections.emptyList();
         }
 
+        // TODO 提供slot
         return declarativeSlotPool.offerSlots(
                 offers, taskManagerLocation, taskManagerGateway, clock.relativeTimeMillis());
     }

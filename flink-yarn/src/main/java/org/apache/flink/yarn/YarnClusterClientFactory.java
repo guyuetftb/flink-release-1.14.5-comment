@@ -75,13 +75,17 @@ public class YarnClusterClientFactory
     }
 
     private YarnClusterDescriptor getClusterDescriptor(Configuration configuration) {
+        //TODO 创建yarn client
         final YarnClient yarnClient = YarnClient.createYarnClient();
-        final YarnConfiguration yarnConfiguration =
-                Utils.getYarnAndHadoopConfiguration(configuration);
+        final YarnConfiguration yarnConfiguration = Utils.getYarnAndHadoopConfiguration(configuration);
 
+        //TODO 初始化yarn client
         yarnClient.init(yarnConfiguration);
+
+        //TODO 启动yarn client
         yarnClient.start();
 
+        //TODO 返回yarn集群描述器
         return new YarnClusterDescriptor(
                 configuration,
                 yarnConfiguration,

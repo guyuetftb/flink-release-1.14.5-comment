@@ -281,32 +281,27 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         // trying to start new workers.
         // Otherwise, ActiveResourceManager will always re-requesting the worker,
         // which keeps the main thread busy.
+        // TODO 资源管理器发起资源请求
         final CompletableFuture<WorkerType> requestResourceFuture =
-                startWorkerCoolDown.thenCompose(
-                        (ignore) -> resourceManagerDriver.requestResource(taskExecutorProcessSpec));
+                startWorkerCoolDown.thenCompose((ignore) -> resourceManagerDriver.requestResource(taskExecutorProcessSpec));
+
         FutureUtils.assertNoException(
                 requestResourceFuture.handle(
                         (worker, exception) -> {
                             if (exception != null) {
-                                final int count =
-                                        pendingWorkerCounter.decreaseAndGet(workerResourceSpec);
-                                log.warn(
-                                        "Failed requesting worker with resource spec {}, current pending count: {}",
-                                        workerResourceSpec,
-                                        count,
-                                        exception);
+                                final int count = pendingWorkerCounter.decreaseAndGet(workerResourceSpec);
+
+                                log.warn("Failed requesting worker with resource spec {}, current pending count: {}", workerResourceSpec, count, exception);
+
                                 recordWorkerFailureAndPauseWorkerCreationIfNeeded();
                                 requestWorkerIfRequired();
                             } else {
                                 final ResourceID resourceId = worker.getResourceID();
                                 workerNodeMap.put(resourceId, worker);
-                                currentAttemptUnregisteredWorkers.put(
-                                        resourceId, workerResourceSpec);
+                                currentAttemptUnregisteredWorkers.put(resourceId, workerResourceSpec);
+
                                 scheduleWorkerRegistrationTimeoutCheck(resourceId);
-                                log.info(
-                                        "Requested worker {} with resource spec {}.",
-                                        resourceId.getStringWithMetadata(),
-                                        workerResourceSpec);
+                                log.info("Requested worker {} with resource spec {}.", resourceId.getStringWithMetadata(), workerResourceSpec);
                             }
                             return null;
                         }));

@@ -138,7 +138,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @see org.apache.flink.streaming.api.environment.RemoteStreamEnvironment
  */
 @Public
-public class StreamExecutionEnvironment {
+public class eStreamExecutionEnvironment {
 
     /**
      * The default name to use for a streaming job if no other name has been specified.
@@ -1913,6 +1913,7 @@ public class StreamExecutionEnvironment {
     public JobExecutionResult execute(String jobName) throws Exception {
         Preconditions.checkNotNull(jobName, "Streaming Job name should not be null.");
         //多易教育: 构造StreamGraph
+        //TODO 获取StreamGraph
         final StreamGraph streamGraph = getStreamGraph();
         streamGraph.setJobName(jobName);
         return execute(streamGraph);
@@ -1929,6 +1930,7 @@ public class StreamExecutionEnvironment {
      */
     @Internal
     public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
+        //TODO 异步执行
         final JobClient jobClient = executeAsync(streamGraph);
 
         try {
@@ -1940,8 +1942,7 @@ public class StreamExecutionEnvironment {
                 jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
             }
 
-            jobListeners.forEach(
-                    jobListener -> jobListener.onJobExecuted(jobExecutionResult, null));
+            jobListeners.forEach(jobListener -> jobListener.onJobExecuted(jobExecutionResult, null));
 
             return jobExecutionResult;
         } catch (Throwable t) {
@@ -2025,23 +2026,22 @@ public class StreamExecutionEnvironment {
      */
     @Internal
     public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
+        //TODO 检查校验streamGraph
         checkNotNull(streamGraph, "StreamGraph cannot be null.");
-        checkNotNull(
-                configuration.get(DeploymentOptions.TARGET),
-                "No execution.target specified in your configuration file.");
+        checkNotNull(configuration.get(DeploymentOptions.TARGET), "No execution.target specified in your configuration file.");
 
-        // standalone 模式下为： RemoteExecutorFactory
-        final PipelineExecutorFactory executorFactory =
-                executorServiceLoader.getExecutorFactory(configuration);
-        checkNotNull(
-                executorFactory,
-                "Cannot find compatible factory for specified execution.target (=%s)",
-                configuration.get(DeploymentOptions.TARGET));
+        // TODO standalone 模式下为： RemoteExecutorFactory
+        final PipelineExecutorFactory executorFactory = executorServiceLoader.getExecutorFactory(configuration);
+        checkNotNull(executorFactory, "Cannot find compatible factory for specified execution.target (=%s)", configuration.get(DeploymentOptions.TARGET));
 
         CompletableFuture<JobClient> jobClientFuture =
                 executorFactory
                         .getExecutor(configuration)  // RemoteExecutorFactory 下：return new RemoteExecutor();
                         .execute(streamGraph, configuration, userClassloader);
+        // TODO 到这里，执行的execute是一个接口函数，我们看 YarnJobClusterExecutor 的实现（在父类AbstractJobClusterExecutor中）。
+        // TODO org.apache.flink.client.deployment.executors.AbstractJobClusterExecutor#execute
+
+
 
         try {
             JobClient jobClient = jobClientFuture.get();

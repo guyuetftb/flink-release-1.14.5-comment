@@ -214,6 +214,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     public final void onStart() throws Exception {
         try {
+            // TODO 启动RM服务
             log.info("Starting the resource manager.");
             startResourceManagerServices();
             startedFuture.complete(null);
@@ -233,11 +234,13 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
             registerMetrics();
 
+            // TODO 启动心跳服务，RM与taskManager、jobManager之间的心跳
             startHeartbeatServices();
 
-            slotManager.start(
-                    getFencingToken(), getMainThreadExecutor(), new ResourceActionsImpl());
+            // TODO 启动slotManager
+            slotManager.start(getFencingToken(), getMainThreadExecutor(), new ResourceActionsImpl());
 
+            // TODO 初始化
             initialize();
         } catch (Exception e) {
             handleStartResourceManagerServicesException(e);
@@ -454,15 +457,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             InstanceID taskManagerRegistrationId,
             SlotReport slotReport,
             Time timeout) {
-        final WorkerRegistration<WorkerType> workerTypeWorkerRegistration =
-                taskExecutors.get(taskManagerResourceId);
+
+        final WorkerRegistration<WorkerType> workerTypeWorkerRegistration = taskExecutors.get(taskManagerResourceId);
 
         if (workerTypeWorkerRegistration.getInstanceID().equals(taskManagerRegistrationId)) {
-            if (slotManager.registerTaskManager(
-                    workerTypeWorkerRegistration,
-                    slotReport,
-                    workerTypeWorkerRegistration.getTotalResourceProfile(),
-                    workerTypeWorkerRegistration.getDefaultSlotResourceProfile())) {
+            // TODO RM中的slotManager注册TM
+            if (slotManager.registerTaskManager(workerTypeWorkerRegistration, slotReport, workerTypeWorkerRegistration.getTotalResourceProfile(), workerTypeWorkerRegistration.getDefaultSlotResourceProfile())) {
                 onWorkerRegistered(workerTypeWorkerRegistration.getWorker());
             }
             return CompletableFuture.completedFuture(Acknowledge.get());
@@ -1248,6 +1248,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         @Override
         public boolean allocateResource(WorkerResourceSpec workerResourceSpec) {
             validateRunsInMainThread();
+            // TODO 启动新的工作节点
             return startNewWorker(workerResourceSpec);
         }
 

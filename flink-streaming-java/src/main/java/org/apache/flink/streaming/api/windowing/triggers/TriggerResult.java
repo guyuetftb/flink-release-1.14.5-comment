@@ -28,7 +28,10 @@ package org.apache.flink.streaming.api.windowing.triggers;
  */
 public enum TriggerResult {
 
-    /** No action is taken on the window. */
+    /**
+     * No action is taken on the window.
+     * 不触发，也不删除元素
+     */
     CONTINUE(false, false),
 
     /** {@code FIRE_AND_PURGE} evaluates the window function and emits the window result. */

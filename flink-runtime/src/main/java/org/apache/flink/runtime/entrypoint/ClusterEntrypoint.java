@@ -180,8 +180,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
         try {
             FlinkSecurityManager.setFromConfiguration(configuration);
-            PluginManager pluginManager =
-                    PluginUtils.createPluginManagerFromRootFolder(configuration);
+            PluginManager pluginManager = PluginUtils.createPluginManagerFromRootFolder(configuration);
             configureFileSystems(configuration, pluginManager);
 
             SecurityContext securityContext = installSecurityContext(configuration);
@@ -190,8 +189,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             securityContext.runSecured(
                     (Callable<Void>)
                             () -> {
+                                //TODO run任务
                                 runCluster(configuration, pluginManager);
-
                                 return null;
                             });
         } catch (Throwable t) {
@@ -240,6 +239,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     private void runCluster(Configuration configuration, PluginManager pluginManager)
             throws Exception {
         synchronized (lock) {
+            //TODO 初始化一些服务，RPC相关的远程调用服务
             initializeServices(configuration, pluginManager);
 
             // write host information into configuration
@@ -247,9 +247,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             configuration.setInteger(JobManagerOptions.PORT, commonRpcService.getPort());
 
             final DispatcherResourceManagerComponentFactory
-                    dispatcherResourceManagerComponentFactory =
-                            createDispatcherResourceManagerComponentFactory(configuration);
+                    dispatcherResourceManagerComponentFactory = createDispatcherResourceManagerComponentFactory(configuration);
 
+            //TODO 创建并启动dispatcher resourceManager jobManager
             clusterComponent =
                     dispatcherResourceManagerComponentFactory.create(
                             configuration,
@@ -260,29 +260,21 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             heartbeatServices,
                             metricRegistry,
                             executionGraphInfoStore,
-                            new RpcMetricQueryServiceRetriever(
-                                    metricRegistry.getMetricQueryServiceRpcService()),
-                            this);
+                            new RpcMetricQueryServiceRetriever(metricRegistry.getMetricQueryServiceRpcService()), this);
 
             clusterComponent
                     .getShutDownFuture()
                     .whenComplete(
                             (ApplicationStatus applicationStatus, Throwable throwable) -> {
                                 if (throwable != null) {
-                                    shutDownAsync(
-                                            ApplicationStatus.UNKNOWN,
-                                            ShutdownBehaviour.STOP_APPLICATION,
-                                            ExceptionUtils.stringifyException(throwable),
-                                            false);
+                                    shutDownAsync(ApplicationStatus.UNKNOWN, ShutdownBehaviour.STOP_APPLICATION,
+                                            ExceptionUtils.stringifyException(throwable), false);
                                 } else {
                                     // This is the general shutdown path. If a separate more
                                     // specific shutdown was
                                     // already triggered, this will do nothing
-                                    shutDownAsync(
-                                            applicationStatus,
-                                            ShutdownBehaviour.STOP_APPLICATION,
-                                            null,
-                                            true);
+                                    shutDownAsync(applicationStatus, ShutdownBehaviour.STOP_APPLICATION,
+                                            null, true);
                                 }
                             });
         }
@@ -618,11 +610,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
         final String clusterEntrypointName = clusterEntrypoint.getClass().getSimpleName();
         try {
+            //TODO 启动集群
             clusterEntrypoint.startCluster();
         } catch (ClusterEntrypointException e) {
-            LOG.error(
-                    String.format("Could not start cluster entrypoint %s.", clusterEntrypointName),
-                    e);
+            LOG.error(String.format("Could not start cluster entrypoint %s.", clusterEntrypointName), e);
             System.exit(STARTUP_FAILURE_RETURN_CODE);
         }
 

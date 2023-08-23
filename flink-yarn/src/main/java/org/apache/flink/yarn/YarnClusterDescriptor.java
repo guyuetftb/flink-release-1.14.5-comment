@@ -472,6 +472,11 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             ClusterSpecification clusterSpecification, JobGraph jobGraph, boolean detached)
             throws ClusterDeploymentException {
         try {
+            /**
+             * TODO
+             * getYarnJobClusterEntrypoint() 获取到Class Name 在提交job到yarn后，根据这个class启动App Master 运行main方法
+             * AppMaster启动后调用YarnJobClusterEntrypoint 类的main方法
+             */
             return deployInternal(
                     clusterSpecification,
                     "Flink per-job cluster",
@@ -545,15 +550,18 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             }
         }
 
+        // TODO 检查部署配置 jar包路径、conf路径、Yarn cpu核数配置
         isReadyForDeployment(clusterSpecification);
 
         // ------------------ Check if the specified queue exists --------------------
 
+        // TODO 检查Yarn队列
         checkYarnQueues(yarnClient);
 
         // ------------------ Check if the YARN ClusterClient has the requested resources
         // --------------
 
+        // TODO 检查Yarn的资源
         // Create application via yarnClient
         final YarnClientApplication yarnApplication = yarnClient.createApplication();
         final GetNewApplicationResponse appResponse = yarnApplication.getNewApplicationResponse();
@@ -565,8 +573,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             freeClusterMem = getCurrentFreeClusterResources(yarnClient);
         } catch (YarnException | IOException e) {
             failSessionDuringDeployment(yarnClient, yarnApplication);
-            throw new YarnDeploymentException(
-                    "Could not retrieve information about free cluster resources.", e);
+            throw new YarnDeploymentException("Could not retrieve information about free cluster resources.", e);
         }
 
         final int yarnMinAllocationMB =
@@ -595,6 +602,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         LOG.info("Cluster specification: {}", validClusterSpecification);
 
+        // TODO 执行模式 detached(-d)：后台执行 NORMAL：正常执行 默认 前端打印执行内容
         final ClusterEntrypoint.ExecutionMode executionMode =
                 detached
                         ? ClusterEntrypoint.ExecutionMode.DETACHED
@@ -603,6 +611,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         flinkConfiguration.setString(
                 ClusterEntrypoint.INTERNAL_CLUSTER_EXECUTION_MODE, executionMode.toString());
 
+        //TODO 启动AppMaster
         ApplicationReport report =
                 startAppMaster(
                         flinkConfiguration,
@@ -778,8 +787,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         // ------------------ Initialize the file systems -------------------------
 
-        org.apache.flink.core.fs.FileSystem.initialize(
-                configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
+        org.apache.flink.core.fs.FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
 
         final FileSystem fs = FileSystem.get(yarnConfiguration);
 
@@ -797,9 +805,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
 
-        final List<Path> providedLibDirs =
-                Utils.getQualifiedRemoteSharedPaths(configuration, yarnConfiguration);
+        // TODO 获取文件上传路径
+        final List<Path> providedLibDirs = Utils.getQualifiedRemoteSharedPaths(configuration, yarnConfiguration);
 
+        // 封装fileUploader 上传文件用
         final YarnApplicationFileUploader fileUploader =
                 YarnApplicationFileUploader.from(
                         fs,
@@ -827,6 +836,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         // ------------------ Add Zookeeper namespace to local flinkConfiguraton ------
         setHAClusterIdIfNotSet(configuration, appId);
 
+        // TODO Yarn 高可用模式设置
         if (HighAvailabilityMode.isHighAvailabilityModeActivated(configuration)) {
             // activate re-execution of failed applications
             appContext.setMaxAppAttempts(
@@ -841,6 +851,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                     configuration.getInteger(YarnConfigOptions.APPLICATION_ATTEMPTS.key(), 1));
         }
 
+        // TODO 用户jar包
         final Set<Path> userJarFiles = new HashSet<>();
         if (jobGraph != null) {
             userJarFiles.addAll(
@@ -850,8 +861,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                             .collect(Collectors.toSet()));
         }
 
-        final List<URI> jarUrls =
-                ConfigUtils.decodeListFromConfig(configuration, PipelineOptions.JARS, URI::create);
+        final List<URI> jarUrls = ConfigUtils.decodeListFromConfig(configuration, PipelineOptions.JARS, URI::create);
         if (jarUrls != null
                 && YarnApplicationClusterEntryPoint.class.getName().equals(yarnClusterEntrypoint)) {
             userJarFiles.addAll(jarUrls.stream().map(Path::new).collect(Collectors.toSet()));
@@ -947,6 +957,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         // write job graph to tmp file and add it to local resource
         // TODO: server use user main method to generate job graph
+        // TODO 在本地创建jobGraph临时文件
         if (jobGraph != null) {
             File tmpJobGraphFile = null;
             try {
@@ -979,6 +990,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         // Upload the flink configuration
         // write out configuration file
+        // TODO 上传Flink配置文件flink-conf.yaml
         File tmpConfigurationFile = null;
         try {
             tmpConfigurationFile = File.createTempFile(appId + "-flink-conf.yaml", null);
@@ -1035,6 +1047,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             }
         }
 
+        // TODO 上传权限验证信息
         Path remoteKrb5Path = null;
         boolean hasKrb5 = false;
         String krb5Config = configuration.get(SecurityOptions.KERBEROS_KRB5_PATH);
@@ -1088,6 +1101,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         final JobManagerProcessSpec processSpec =
                 JobManagerProcessUtils.processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
                         flinkConfiguration, JobManagerOptions.TOTAL_PROCESS_MEMORY);
+        //TODO 启动AppMaster容器
         final ContainerLaunchContext amContainer =
                 setupApplicationMasterContainer(yarnClusterEntrypoint, hasKrb5, processSpec);
 
@@ -1109,14 +1123,15 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         }
 
         amContainer.setLocalResources(fileUploader.getRegisteredLocalResources());
+        // TODO 上传完毕
         fileUploader.close();
 
         // Setup CLASSPATH and environment variables for ApplicationMaster
+        // TODO AppMaster的环境配置
         final Map<String, String> appMasterEnv = new HashMap<>();
         // set user specified app master environment variables
         appMasterEnv.putAll(
-                ConfigurationUtils.getPrefixedKeyValuePairs(
-                        ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX, configuration));
+                ConfigurationUtils.getPrefixedKeyValuePairs(ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX, configuration));
         // set Flink app class path
         appMasterEnv.put(YarnConfigKeys.ENV_FLINK_CLASSPATH, classPathBuilder.toString());
 
@@ -1124,18 +1139,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         appMasterEnv.put(YarnConfigKeys.FLINK_DIST_JAR, localResourceDescFlinkJar.toString());
         appMasterEnv.put(YarnConfigKeys.ENV_APP_ID, appId.toString());
         appMasterEnv.put(YarnConfigKeys.ENV_CLIENT_HOME_DIR, fileUploader.getHomeDir().toString());
-        appMasterEnv.put(
-                YarnConfigKeys.ENV_CLIENT_SHIP_FILES,
-                encodeYarnLocalResourceDescriptorListToString(
-                        fileUploader.getEnvShipResourceList()));
-        appMasterEnv.put(
-                YarnConfigKeys.FLINK_YARN_FILES,
-                fileUploader.getApplicationDir().toUri().toString());
+        appMasterEnv.put(YarnConfigKeys.ENV_CLIENT_SHIP_FILES,
+                encodeYarnLocalResourceDescriptorListToString(fileUploader.getEnvShipResourceList()));
+        appMasterEnv.put(YarnConfigKeys.FLINK_YARN_FILES, fileUploader.getApplicationDir().toUri().toString());
 
         // https://github.com/apache/hadoop/blob/trunk/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-site/src/site/markdown/YarnApplicationSecurity.md#identity-on-an-insecure-cluster-hadoop_user_name
-        appMasterEnv.put(
-                YarnConfigKeys.ENV_HADOOP_USER_NAME,
-                UserGroupInformation.getCurrentUser().getUserName());
+        appMasterEnv.put(YarnConfigKeys.ENV_HADOOP_USER_NAME, UserGroupInformation.getCurrentUser().getUserName());
 
         if (localizedKeytabPath != null) {
             appMasterEnv.put(YarnConfigKeys.LOCAL_KEYTAB_PATH, localizedKeytabPath);
@@ -1148,8 +1157,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         // To support Yarn Secure Integration Test Scenario
         if (remoteYarnSiteXmlPath != null) {
-            appMasterEnv.put(
-                    YarnConfigKeys.ENV_YARN_SITE_XML_PATH, remoteYarnSiteXmlPath.toString());
+            appMasterEnv.put(YarnConfigKeys.ENV_YARN_SITE_XML_PATH, remoteYarnSiteXmlPath.toString());
         }
         if (remoteKrb5Path != null) {
             appMasterEnv.put(YarnConfigKeys.ENV_KRB5_PATH, remoteKrb5Path.toString());
@@ -1158,13 +1166,13 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         // set classpath from YARN configuration
         Utils.setupYarnClassPath(yarnConfiguration, appMasterEnv);
 
+        //TODO 设置AM容器环境信息
         amContainer.setEnvironment(appMasterEnv);
 
         // Set up resource type requirements for ApplicationMaster
         Resource capability = Records.newRecord(Resource.class);
         capability.setMemory(clusterSpecification.getMasterMemoryMB());
-        capability.setVirtualCores(
-                flinkConfiguration.getInteger(YarnConfigOptions.APP_MASTER_VCORES));
+        capability.setVirtualCores(flinkConfiguration.getInteger(YarnConfigOptions.APP_MASTER_VCORES));
 
         final String customApplicationName = customName != null ? customName : applicationName;
 
@@ -1193,6 +1201,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                 new DeploymentFailureHook(yarnApplication, fileUploader.getApplicationDir());
         Runtime.getRuntime().addShutdownHook(deploymentFailureHook);
         LOG.info("Submitting application master " + appId);
+        //TODO YarnClient提交应用 内部开始走Hadoop Yarn的源码
         yarnClient.submitApplication(appContext);
 
         LOG.info("Waiting for the cluster to be allocated");

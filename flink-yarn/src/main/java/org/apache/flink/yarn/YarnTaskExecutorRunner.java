@@ -64,6 +64,7 @@ public class YarnTaskExecutorRunner {
         SignalHandler.register(LOG);
         JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
+        // TODO 运行TaskManager
         runTaskManagerSecurely(args);
     }
 
@@ -80,9 +81,10 @@ public class YarnTaskExecutorRunner {
         try {
             LOG.debug("All environment variables: {}", ENV);
 
+            // TODO 获得环境当前路径
             final String currDir = ENV.get(Environment.PWD.key());
             LOG.info("Current working Directory: {}", currDir);
-
+            // TODO 加载配置
             configuration = TaskManagerRunner.loadConfiguration(args);
             setupAndModifyConfiguration(configuration, currDir, ENV);
         } catch (Throwable t) {
@@ -90,6 +92,7 @@ public class YarnTaskExecutorRunner {
             System.exit(INIT_ERROR_EXIT_CODE);
         }
 
+        // TODO 运行TaskManager
         TaskManagerRunner.runTaskManagerProcessSecurely(Preconditions.checkNotNull(configuration));
     }
 

@@ -505,14 +505,12 @@ public class Execution
      * 多易教育： 在之前所分配的资源上部署执行 execution
      * @throws JobException if the execution cannot be deployed to the assigned resource
      */
-    public void deploy() throws JobException {  // 多易教育:  部署task流程的最底层方法
+    public void deploy() throws JobException {  // TODO 多易教育:  部署task流程的最底层方法
         assertRunningInJobMasterMainThread();
 
         final LogicalSlot slot = assignedResource;
 
-        checkNotNull(
-                slot,
-                "In order to deploy the execution we first have to assign a resource via tryAssignResource.");
+        checkNotNull(slot, "In order to deploy the execution we first have to assign a resource via tryAssignResource.");
 
         // Check if the TaskManager died in the meantime
         // This only speeds up the response to TaskManagers failing concurrently to deployments.
@@ -525,7 +523,7 @@ public class Execution
         // note: the transition from CREATED to DEPLOYING is for testing purposes only
         ExecutionState previous = this.state;
         if (previous == SCHEDULED || previous == CREATED) {
-            //多易教育: 切换executionState为 : 部署中 (此状态转移仅为测试目的用）
+            //TODO 多易教育: 切换executionState为 : 部署中 (此状态转移仅为测试目的用）
             if (!transitionState(previous, DEPLOYING)) {
                 // race condition, someone else beat us to the deploying call.
                 // this should actually not happen and indicates a race somewhere else
@@ -566,7 +564,8 @@ public class Execution
                     vertex.getCurrentExecutionAttempt().getAttemptId(),
                     getAssignedResourceLocation(),
                     slot.getAllocationId());
-            //多易教育: --------------------------------------------------
+            //TODO 多易教育:
+            // --------------------------------------------------
             // 部署一个subtask所需的所有信息，都封装在这个deploymentDescriptor中；发给TaskManager的也就是这个对象
             // 包含各类标识ID： executionId，allocationId，attemptNumber,subtaskIndex,jobId，
             // 及subTask的 输出:producedPartitions，输入:inputGateDeploymentDescriptors
@@ -580,16 +579,16 @@ public class Execution
 
             // null taskRestore to let it be GC'ed
             taskRestore = null;
-            //多易教育:------------------
+            //TODO 多易教育:
+            // ------------------
             // 获取taskManager通信网关
             // ------------------------
             final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
-            //多易教育: 获取jobMaster的工作主线程
-            final ComponentMainThreadExecutor jobMasterMainThreadExecutor =
-                    vertex.getExecutionGraphAccessor().getJobMasterMainThreadExecutor();
+            //TODO 多易教育: 获取jobMaster的工作主线程
+            final ComponentMainThreadExecutor jobMasterMainThreadExecutor = vertex.getExecutionGraphAccessor().getJobMasterMainThreadExecutor();
 
-            //多易教育: execution状态转移，
+            //TODO 多易教育: execution状态转移，
             // 底层是向 DefaultExecutionDeploymentTracker 中进行状态更新记录,如下：
             //   pendingDeployments.add(executionAttemptId);
             //   hostByExecution.put(executionAttemptId, host);
@@ -598,40 +597,30 @@ public class Execution
             // We run the submission in the future executor so that the serialization of large TDDs
             // does not block
             // the main thread and sync back to the main thread once submission is completed.
-            // 多易教育:  在jobMaster的 futureExecutor 线程池中，用gateway来submitTask
+
+            // TODO 多易教育:  在jobMaster的 futureExecutor 线程池中，用gateway来submitTask
             //  futureExecutor线程池来源于  JobManagerSharedServices.fromConfiguration()
             //  ExecutorService ioExecutor =Executors.newFixedThreadPool(jobManagerIoPoolSize, new ExecutorThreadFactory("jobmanager-io"));
             //  其中的poolSize来自于配置参数： jobmanager.future-pool.size
             CompletableFuture.supplyAsync(
-                            // 多易教育：用网关提交task
+                            // TODO  多易教育：用网关提交task
                             () -> taskManagerGateway.submitTask(deployment, rpcTimeout), executor)
                     .thenCompose(Function.identity())
-                    //多易教育: 在jobMaster的工作主线程中进行task部署后的结果处理
+
+                    //TODO 多易教育: 在jobMaster的工作主线程中进行task部署后的结果处理
                     .whenCompleteAsync(
                             (ack, failure) -> {
                                 if (failure == null) {
-                                    //多易教育: 部署结果没有异常，则将 executionVertex 状态切换为：部署完成
+
+                                    //TODO 多易教育: 部署结果没有异常，则将 executionVertex 状态切换为：部署完成
                                     vertex.notifyCompletedDeployment(this);
                                 } else {
-                                    final Throwable actualFailure =
-                                            ExceptionUtils.stripCompletionException(failure);
+                                    final Throwable actualFailure = ExceptionUtils.stripCompletionException(failure);
 
                                     if (actualFailure instanceof TimeoutException) {
-                                        String taskname =
-                                                vertex.getTaskNameWithSubtaskIndex()
-                                                        + " ("
-                                                        + attemptId
-                                                        + ')';
-
+                                        String taskname = vertex.getTaskNameWithSubtaskIndex() + " (" + attemptId + ')';
                                         markFailed(
-                                                new Exception(
-                                                        "Cannot deploy task "
-                                                                + taskname
-                                                                + " - TaskManager ("
-                                                                + getAssignedResourceLocation()
-                                                                + ") not responding after a rpcTimeout of "
-                                                                + rpcTimeout,
-                                                        actualFailure));
+                                                new Exception("Cannot deploy task " + taskname + " - TaskManager (" + getAssignedResourceLocation() + ") not responding after a rpcTimeout of " + rpcTimeout, actualFailure));
                                     } else {
                                         markFailed(actualFailure);
                                     }
